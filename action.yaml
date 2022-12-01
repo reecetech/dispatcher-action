@@ -1,8 +1,7 @@
 ---
 name: 'Dispatcher Action'
 description: |
-  Makes a repository dispatch API call, but includes a link back to the calling workflow so that the dispatched flow
-  knows _who_ dispatched it - this reduces the number of usable `client-payload` items by 1
+  Makes a repository dispatch API call, but includes a link back to the calling workflow
 
 branding:
   icon: map-pin
