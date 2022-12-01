@@ -1,0 +1,55 @@
+---
+name: Test and Release
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        name: Checkout code 🛒
+        uses: actions/checkout@v3
+
+      - id: yamllint
+        name: Run yamllint 📃
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          strict: true
+
+  release:
+    needs:
+      - lint
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        name: Checkout code 🛒
+        uses: actions/checkout@v3
+
+      - id: version
+        name: Calculate next version 🔢
+        uses: reecetech/version-increment@2022.10.3
+
+      - id: release
+        if: ${{ github.ref_name == github.event.repository.default_branch }}
+        name: Release version 📦
+        uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0  # v1.2.1
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          draft: false
+          prerelease: false
+          automatic_release_tag: "${{ steps.version.outputs.v-version }}"
+
+      - id: update-major-tag
+        if: ${{ github.ref_name == github.event.repository.default_branch }}
+        name: Update the major version tag 🏷
+        uses: richardsimko/update-tag@v1
+        with:
+          tag_name: ${{ steps.version.outputs.major-v-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

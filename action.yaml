@@ -1,0 +1,53 @@
+---
+name: 'Dispatcher Action'
+description: |
+  Makes a repository dispatch API call, but includes a link back to the calling workflow so that the dispatched flow
+  knows _who_ dispatched it - this reduces the number of usable `client-payload` items by 1
+
+branding:
+  icon: map-pin
+  color: purple
+
+inputs:
+  token:
+    description: 'Token with access to the target repository'
+    default: ${{ github.token }}
+    required: false
+  repository:
+    description: 'The full name of the repository to send the dispatch'
+    default: ${{ github.repository }}
+    required: false
+  event-type:
+    description: 'The `repository_dispatch` event name (also known as `type`)'
+    required: true
+  client-payload:
+    description: 'JSON payload for the `repository_dispatch` event (key `dispatched_by` is upserted by this action)'
+    default: '{}'
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - id: enrich-json
+      name: Add dispatched_by to client-payload
+      shell: bash
+      # yamllint disable rule:line-length
+      run: |
+        set -euo pipefail
+
+        # cat << JSONDATA is a here doc, bounded by "JSONDATA"
+        # jq -c outputs a single line of json, with dispatched_by set
+        # aws prepends the json with "json=" for GITHUB_OUTPUT to pick it up
+        cat << JSONDATA | jq -c '.dispatched_by="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"' | awk '{print "json=" $0}' > "${GITHUB_OUTPUT}"
+        ${{ inputs.client-payload }}
+        JSONDATA
+      # yamllint enable rule:line-length
+
+    - id: dispatch
+      name: Create respository dispatch event
+      uses: peter-evans/repository-dispatch@f2696244ec00ed5c659a5cc77f7138ad0302dffb  # v2.1.0
+      with:
+        token: "${{ inputs.token }}"
+        repository: "${{ inputs.repository }}"
+        event-type: "${{ inputs.event-type }}"
+        client-payload: ${{ steps.enrich-json.outputs.json }}
